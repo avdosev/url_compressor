@@ -7,29 +7,49 @@
 #include <map>
 #include <array>
 #include <queue>
+#include <cstddef>
 
 namespace fs = std::filesystem;
 
-struct hash_path {
-    std::size_t operator()(const fs::path &path) const {
-        return hash_value(path);
-    }
-};
 
-
-size_t raw_line_counter(std::istream& istream) {
-    size_t res = 0;
-    constexpr size_t buff_size = 1024*64;
-    std::vector<char> buff(buff_size);
-    while (!istream.eof()) {
-        istream.read(buff.data(), buff.size());
-        auto const len_read = istream.gcount();
-        for (size_t i = 0; i < len_read; i++) {
-            res += buff[i] == '\n';
+class line_reader {
+    public:
+        line_reader(std::istream& stream, size_t buff_size) : buff(buff_size), istream(stream) {
+            current_index = buff.size();
         }
-    }
-    return res;
-}
+
+        std::string readline() {
+            if (current_index >= buff.size()) {
+                istream.read(buff.data(), buff.size());
+                current_index = 0;
+            }
+
+            auto const len_read = istream.gcount();
+            size_t i;
+            for (i = current_index; i < len_read; i++) {
+                if (buff[i] == '\n') break;
+            }
+
+            auto end_string = buff.cbegin() + i;
+            std::string res(buff.cbegin()+current_index, end_string);
+
+            current_index = i+1;
+
+            if (buff[i] != '\n') {
+                res += this->readline();
+            }
+
+            return res;
+        }
+
+        bool eof() const {
+            return istream.eof() && current_index >= istream.gcount();
+        }
+    private:
+        ptrdiff_t current_index;
+        std::vector<char> buff;
+        std::istream& istream;
+};
 
 
 template <class elapsedFnc, class ...args_t>
@@ -71,13 +91,18 @@ class file_stream_map {
         }
 
     private:
+        struct hash_path {
+            std::size_t operator()(const fs::path &path) const {
+                return hash_value(path);
+            }
+        };
         using path_to_stream_map = std::unordered_map<fs::path, std::ofstream, hash_path>;
         path_to_stream_map files;
 };
 
 
 void compression_url(std::string_view line, file_stream_map& files_map) {
-    static const char* filename = "urls.txt";
+    const char* filename = "urls.txt";
     constexpr auto len_http = std::size("http://") - 1;
 
     if (line.empty()) return;
@@ -110,10 +135,9 @@ void compress_file(fs::path filename) {
     }
 
     file_stream_map files;
-    std::string line;
-    line.reserve(350);
-    while (std::getline(file, line)) {
-        compression_url(line, files);
+    line_reader file_reader(file, 1024*64);
+    while (!file_reader.eof()) {
+        compression_url(file_reader.readline(), files);
     }
 }
 
