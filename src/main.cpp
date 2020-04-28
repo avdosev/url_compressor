@@ -18,7 +18,7 @@ class line_reader {
             current_index = buff.size();
         }
 
-        std::string readline() {
+        void readline(std::string& res) {
             if (current_index >= buff.size()) {
                 istream.read(buff.data(), buff.size());
                 current_index = 0;
@@ -31,15 +31,13 @@ class line_reader {
             }
 
             auto end_string = buff.cbegin() + i;
-            std::string res(buff.cbegin()+current_index, end_string);
+            std::copy(buff.cbegin()+current_index, end_string, std::back_inserter(res));
 
             current_index = i+1;
 
             if (buff[i] != '\n') {
-                res += this->readline();
+                this->readline(res);
             }
-
-            return res;
         }
 
         bool eof() const {
@@ -136,8 +134,12 @@ void compress_file(fs::path filename) {
 
     file_stream_map files;
     line_reader file_reader(file, 1024*64);
+    std::string line;
+    line.reserve(300);
     while (!file_reader.eof()) {
-        compression_url(file_reader.readline(), files);
+        file_reader.readline(line);
+        compression_url(line, files);
+        line.clear();
     }
 }
 
