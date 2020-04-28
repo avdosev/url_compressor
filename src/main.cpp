@@ -64,6 +64,9 @@ void check_elapsed(elapsedFnc fnc, args_t... args) {
 
 class file_stream_map {
     public:
+        using key_t = fs::path;
+        using value_t = std::ofstream;
+
         file_stream_map() = default;
         file_stream_map(const file_stream_map&) = delete;
 
@@ -90,11 +93,11 @@ class file_stream_map {
 
     private:
         struct hash_path {
-            std::size_t operator()(const fs::path &path) const {
+            std::size_t operator()(const fs::path& path) const {
                 return hash_value(path);
             }
         };
-        using path_to_stream_map = std::unordered_map<fs::path, std::ofstream, hash_path>;
+        using path_to_stream_map = std::unordered_map<key_t, value_t, hash_path>;
         path_to_stream_map files;
 };
 
@@ -115,8 +118,8 @@ void compression_url(std::string_view line, file_stream_map& files_map) {
     auto image_url = line_without_http.substr(i+1);
 
 
-    fs::path path("./urls");
-    path /= sections;
+    fs::path path("./urls/");
+    path += sections;
 
     auto& write_file = files_map.try_get_or_insert(path, filename);
 
@@ -135,7 +138,7 @@ void compress_file(fs::path filename) {
     file_stream_map files;
     line_reader file_reader(file, 1024*64);
     std::string line;
-    line.reserve(300);
+    line.reserve(500);
     while (!file_reader.eof()) {
         file_reader.readline(line);
         compression_url(line, files);
