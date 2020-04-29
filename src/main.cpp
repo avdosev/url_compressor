@@ -19,25 +19,24 @@ class line_reader {
         }
 
         void readline(std::string& res) {
-            if (current_index >= buff.size()) {
-                istream.read(buff.data(), buff.size());
-                current_index = 0;
-            }
-
-            auto const len_read = istream.gcount();
             size_t i;
-            for (i = current_index; i < len_read; i++) {
-                if (buff[i] == '\n') break;
-            }
+            do {
+                if (current_index >= buff.size()) {
+                    istream.read(buff.data(), buff.size());
+                    current_index = 0;
+                }
 
-            auto end_string = buff.cbegin() + i;
-            std::copy(buff.cbegin()+current_index, end_string, std::back_inserter(res));
+                auto const len_read = istream.gcount();
 
-            current_index = i+1;
+                for (i = current_index; i < len_read; i++) {
+                    if (buff[i] == '\n') break;
+                }
 
-            if (buff[i] != '\n') {
-                this->readline(res);
-            }
+                auto end_string = buff.cbegin() + i;
+                std::copy(buff.cbegin()+current_index, end_string, std::back_inserter(res));
+
+                current_index = i+1;
+            } while (buff[i] != '\n');
         }
 
         bool eof() const {
